@@ -1,0 +1,187 @@
+Data
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+Initialization
+## Warning: package 'caret' was built under R version 3.4.4
+## Loading required package: lattice
+## Loading required package: ggplot2
+## Warning: package 'rpart.plot' was built under R version 3.4.4
+## Loading required package: rpart
+## Warning: package 'rpart' was built under R version 3.4.4
+I downloaded and loaded variable training_data and test_data respectively
+training_data <- read.csv('training_data.csv', na.strings = c("NA", "#DIV/0!", ""))
+test_data <- read.csv('testing_data.csv', na.strings = c("NA", "#DIV/0!", ""))
+Data Preparation
+We first remove those data contains more than 95% of the observation to be NA. We filter out those records.
+clnColumnIndex <- colSums(is.na(training_data))/nrow(training_data) < 0.95
+clean_training_data <- training_data[,clnColumnIndex]
+We then verifying we have removed NA correctly
+colSums(is.na(clean_training_data))/nrow(clean_training_data)
+##                    X            user_name raw_timestamp_part_1 
+##                    0                    0                    0 
+## raw_timestamp_part_2       cvtd_timestamp           new_window 
+##                    0                    0                    0 
+##           num_window            roll_belt           pitch_belt 
+##                    0                    0                    0 
+##             yaw_belt     total_accel_belt         gyros_belt_x 
+##                    0                    0                    0 
+##         gyros_belt_y         gyros_belt_z         accel_belt_x 
+##                    0                    0                    0 
+##         accel_belt_y         accel_belt_z        magnet_belt_x 
+##                    0                    0                    0 
+##        magnet_belt_y        magnet_belt_z             roll_arm 
+##                    0                    0                    0 
+##            pitch_arm              yaw_arm      total_accel_arm 
+##                    0                    0                    0 
+##          gyros_arm_x          gyros_arm_y          gyros_arm_z 
+##                    0                    0                    0 
+##          accel_arm_x          accel_arm_y          accel_arm_z 
+##                    0                    0                    0 
+##         magnet_arm_x         magnet_arm_y         magnet_arm_z 
+##                    0                    0                    0 
+##        roll_dumbbell       pitch_dumbbell         yaw_dumbbell 
+##                    0                    0                    0 
+## total_accel_dumbbell     gyros_dumbbell_x     gyros_dumbbell_y 
+##                    0                    0                    0 
+##     gyros_dumbbell_z     accel_dumbbell_x     accel_dumbbell_y 
+##                    0                    0                    0 
+##     accel_dumbbell_z    magnet_dumbbell_x    magnet_dumbbell_y 
+##                    0                    0                    0 
+##    magnet_dumbbell_z         roll_forearm        pitch_forearm 
+##                    0                    0                    0 
+##          yaw_forearm  total_accel_forearm      gyros_forearm_x 
+##                    0                    0                    0 
+##      gyros_forearm_y      gyros_forearm_z      accel_forearm_x 
+##                    0                    0                    0 
+##      accel_forearm_y      accel_forearm_z     magnet_forearm_x 
+##                    0                    0                    0 
+##     magnet_forearm_y     magnet_forearm_z               classe 
+##                    0                    0                    0
+colSums(is.na(clean_training_data))
+##                    X            user_name raw_timestamp_part_1 
+##                    0                    0                    0 
+## raw_timestamp_part_2       cvtd_timestamp           new_window 
+##                    0                    0                    0 
+##           num_window            roll_belt           pitch_belt 
+##                    0                    0                    0 
+##             yaw_belt     total_accel_belt         gyros_belt_x 
+##                    0                    0                    0 
+##         gyros_belt_y         gyros_belt_z         accel_belt_x 
+##                    0                    0                    0 
+##         accel_belt_y         accel_belt_z        magnet_belt_x 
+##                    0                    0                    0 
+##        magnet_belt_y        magnet_belt_z             roll_arm 
+##                    0                    0                    0 
+##            pitch_arm              yaw_arm      total_accel_arm 
+##                    0                    0                    0 
+##          gyros_arm_x          gyros_arm_y          gyros_arm_z 
+##                    0                    0                    0 
+##          accel_arm_x          accel_arm_y          accel_arm_z 
+##                    0                    0                    0 
+##         magnet_arm_x         magnet_arm_y         magnet_arm_z 
+##                    0                    0                    0 
+##        roll_dumbbell       pitch_dumbbell         yaw_dumbbell 
+##                    0                    0                    0 
+## total_accel_dumbbell     gyros_dumbbell_x     gyros_dumbbell_y 
+##                    0                    0                    0 
+##     gyros_dumbbell_z     accel_dumbbell_x     accel_dumbbell_y 
+##                    0                    0                    0 
+##     accel_dumbbell_z    magnet_dumbbell_x    magnet_dumbbell_y 
+##                    0                    0                    0 
+##    magnet_dumbbell_z         roll_forearm        pitch_forearm 
+##                    0                    0                    0 
+##          yaw_forearm  total_accel_forearm      gyros_forearm_x 
+##                    0                    0                    0 
+##      gyros_forearm_y      gyros_forearm_z      accel_forearm_x 
+##                    0                    0                    0 
+##      accel_forearm_y      accel_forearm_z     magnet_forearm_x 
+##                    0                    0                    0 
+##     magnet_forearm_y     magnet_forearm_z               classe 
+##                    0                    0                    0
+We also remove col1 to col7 because they are not related to the model
+clean_training_data <- clean_training_data[,-c(1:7)]
+clean_test_data <- test_data[,-c(1:7)]
+We then partition the training data into training set and cross validation set
+inTrainIndex <- createDataPartition(clean_training_data$classe, p=0.75)[[1]]
+training_training_data <- clean_training_data[inTrainIndex,]
+training_crossval_data <- clean_training_data[-inTrainIndex,]
+Now change the test data set into the same
+allNames <- names(clean_training_data)
+clean_test_data <- test_data[,allNames[1:52]]
+ML Algorithm - Decision Tree
+decisionTreeMod <- train(classe ~., method='rpart', data=training_training_data)
+Predict with decision tree and output the confusion matrix. It seems like the result of the model is not ideal.
+decisionTreePrediction <- predict(decisionTreeMod, training_crossval_data)
+confusionMatrix(training_crossval_data$classe, decisionTreePrediction)
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1242   28   99    0   26
+##          B  369  334  246    0    0
+##          C  399   24  432    0    0
+##          D  355  145  304    0    0
+##          E  122  124  246    0  409
+## 
+## Overall Statistics
+##                                          
+##                Accuracy : 0.4929         
+##                  95% CI : (0.4788, 0.507)
+##     No Information Rate : 0.5071         
+##     P-Value [Acc > NIR] : 0.978          
+##                                          
+##                   Kappa : 0.3383         
+##  Mcnemar's Test P-Value : NA             
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.4994  0.50992  0.32555       NA   0.9402
+## Specificity            0.9367  0.85526  0.88174   0.8361   0.8899
+## Pos Pred Value         0.8903  0.35195  0.50526       NA   0.4539
+## Neg Pred Value         0.6452  0.91884  0.77896       NA   0.9935
+## Prevalence             0.5071  0.13356  0.27060   0.0000   0.0887
+## Detection Rate         0.2533  0.06811  0.08809   0.0000   0.0834
+## Detection Prevalence   0.2845  0.19352  0.17435   0.1639   0.1837
+## Balanced Accuracy      0.7180  0.68259  0.60365       NA   0.9151
+plotting the decision tree
+rpart.plot(decisionTreeMod$finalModel)
+
+ML Algorithm - Random Forest
+rfMod <- train(classe ~., method='rf', data=training_training_data, ntree=128)
+rfPrediction <- predict(rfMod, training_crossval_data)
+confusionMatrix(training_crossval_data$classe, rfPrediction)
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1394    1    0    0    0
+##          B    5  943    1    0    0
+##          C    0    3  850    2    0
+##          D    0    0   18  786    0
+##          E    0    0    2    5  894
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.9925          
+##                  95% CI : (0.9896, 0.9947)
+##     No Information Rate : 0.2853          
+##     P-Value [Acc > NIR] : < 2.2e-16       
+##                                           
+##                   Kappa : 0.9905          
+##  Mcnemar's Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9964   0.9958   0.9759   0.9912   1.0000
+## Specificity            0.9997   0.9985   0.9988   0.9956   0.9983
+## Pos Pred Value         0.9993   0.9937   0.9942   0.9776   0.9922
+## Neg Pred Value         0.9986   0.9990   0.9948   0.9983   1.0000
+## Prevalence             0.2853   0.1931   0.1776   0.1617   0.1823
+## Detection Rate         0.2843   0.1923   0.1733   0.1603   0.1823
+## Detection Prevalence   0.2845   0.1935   0.1743   0.1639   0.1837
+## Balanced Accuracy      0.9981   0.9971   0.9873   0.9934   0.9991
